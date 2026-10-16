@@ -1,24 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import StationMenu from "./components/StationMenu";
 import DateRangeSelector from "./components/DateRangeSelector";
 import DataView from "./components/DataView";
 import StatsView from "./components/StatsView";
+import { loadStationInventory, loadCSV } from "./utils/weatherData";
+import { getWeatherRows, getAvailableStations, getStationsByProvince } from "./utils/weatherData";
 
 // Il faut les remplacer par les donnees fournis dans le dossiers lab1CSV
-const DEMO_PROVINCES = [
-  {
-    name: "Alberta",
-    stations: [
-      { id: "YYC", name: "CALGARY INTL A (YYC)" },
-      { id: "YEG", name: "EDMONTON INT'L A (YEG)" },
-    ],
-  },
-  { name: "British Columbia", stations: [] },
-  { name: "Manitoba", stations: [] },
-  { name: "Saskatchewan", stations: [] },
-];
+// const DEMO_PROVINCES = [
+//   {
+//     name: "Alberta",
+//     stations: [
+//       { id: "YYC", name: "CALGARY INTL A (YYC)" },
+//       { id: "YEG", name: "EDMONTON INT'L A (YEG)" },
+//     ],
+//   },
+//   { name: "British Columbia", stations: [] },
+//   { name: "Manitoba", stations: [] },
+//   { name: "Saskatchewan", stations: [] },
+// ];
 const DEMO_YEARS = [2020, 2021, 2022];
 
 function App() {
@@ -31,8 +33,24 @@ function App() {
   });
   const [activeTab, setActiveTab] = useState("data");
 
+  const [provinces, setProvinces] = useState([]);
+
   const tabClass = (tab) =>
     `px-6 py-1 ${activeTab === tab ? "bg-orange-500" : "bg-blue-300"}`;
+
+
+  
+  useEffect(() => {
+    const groupedStations = getStationsByProvince();
+
+    console.log("=== STATIONS BY PROVINCE ===");
+    console.log(groupedStations);
+
+    setProvinces(groupedStations);
+  }, []);
+
+
+
 
   return (
     <div className="min-h-screen">
@@ -42,7 +60,7 @@ function App() {
         <main className="flex border-t">
           <aside className="w-64 border-r p-4">
             <StationMenu
-              provinces={DEMO_PROVINCES}
+              provinces={provinces}
               selectedStation={selectedStation}
               onSelectStation={setSelectedStation}
             />

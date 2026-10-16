@@ -5,21 +5,46 @@ import { useState } from "react";
 function StationMenu({ provinces = [], selectedStation, onSelectStation }) {
   const [openProvince, setOpenProvince] = useState(null);
 
+  const allStations = provinces.flatMap((province) => province.stations).sort((a, b) => a.name.localeCompare(b.name));
+
   const toggleProvince = (name) => {
     setOpenProvince(openProvince === name ? null : name);
   };
+  
 
   return (
-    <ul className="flex max-h-[600px] flex-col gap-2 overflow-y-auto">
+    <ul className="flex max-h-[600px] flex-col gap-2 overflow-y-auto"> 
       <li>
         <button
-          className="w-full bg-blue-200 py-2"
-          onClick={() => onSelectStation?.(null)}
+          className={`w-full py-2 ${
+            openProvince === "all"
+              ? "bg-green-700 text-white"
+              : "bg-blue-200"
+          }`}
+          onClick={() => toggleProvince("all")}
         >
           Toutes les stations
         </button>
-      </li>
 
+        {openProvince === "all" && (
+          <ul className="max-h-40 overflow-y-auto px-2 py-1 text-sm">
+            {allStations.map((station) => (
+              <li key={station.id}>
+                <button
+                  className={
+                    selectedStation?.id === station.id
+                      ? "text-red-600"
+                      : ""
+                  }
+                  onClick={() => onSelectStation?.(station)}
+                >
+                  - {station.name} ({station.airportCode})
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </li>
       {provinces.map((province) => (
         <li key={province.name}>
           <button
@@ -43,7 +68,7 @@ function StationMenu({ provinces = [], selectedStation, onSelectStation }) {
                     }
                     onClick={() => onSelectStation?.(station)}
                   >
-                    - {station.name}
+                    - {station.name} ({station.airportCode})
                   </button>
                 </li>
               ))}
