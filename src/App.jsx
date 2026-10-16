@@ -6,34 +6,40 @@ import DateRangeSelector from "./components/DateRangeSelector";
 import DataView from "./components/DataView";
 import StatsView from "./components/StatsView";
 import { loadStationInventory, loadCSV } from "./utils/weatherData";
-import { getWeatherRows, getAvailableStations, getStationsByProvince } from "./utils/weatherData";
+import { getWeatherRows, getAvailableStations, getStationsByProvince, getStationDateRange, getWeatherRecords, filterWeatherRecords } from "./utils/weatherData";
 
-// Il faut les remplacer par les donnees fournis dans le dossiers lab1CSV
-// const DEMO_PROVINCES = [
-//   {
-//     name: "Alberta",
-//     stations: [
-//       { id: "YYC", name: "CALGARY INTL A (YYC)" },
-//       { id: "YEG", name: "EDMONTON INT'L A (YEG)" },
-//     ],
-//   },
-//   { name: "British Columbia", stations: [] },
-//   { name: "Manitoba", stations: [] },
-//   { name: "Saskatchewan", stations: [] },
-// ];
-const DEMO_YEARS = [2020, 2021, 2022];
 
 function App() {
   const [selectedStation, setSelectedStation] = useState(null);
-  const [range, setRange] = useState({
-    fromYear: 2020,
-    fromMonth: 1,
-    toYear: 2022,
-    toMonth: 12,
-  });
+  const [range, setRange] = useState(null);
+  const [stationLimits, setStationLimits] = useState(null);
   const [activeTab, setActiveTab] = useState("data");
-
   const [provinces, setProvinces] = useState([]);
+
+  const weatherRecords = selectedStation ? getWeatherRecords(selectedStation.stationID, range) : [];
+  const filteredRecords = filterWeatherRecords(weatherRecords, range);
+
+  function handleStationSelection(station) {
+  setSelectedStation(station);
+
+  if (station === null) {
+    setStationLimits(null);
+    setRange(null);
+    return;
+  }
+
+  const limits = getStationDateRange(station.stationID);
+
+  setStationLimits(limits);
+  setRange(limits);
+  }
+
+  const years = [];
+  if (stationLimits != null) {
+    for (let i = stationLimits.fromYear; i <= stationLimits.toYear; i++) {
+      years.push(i);
+    }
+  }
 
   const tabClass = (tab) =>
     `px-6 py-1 ${activeTab === tab ? "bg-orange-500" : "bg-blue-300"}`;
@@ -47,6 +53,14 @@ function App() {
     console.log(groupedStations);
 
     setProvinces(groupedStations);
+
+    const victoriaRange = getStationDateRange(118);
+    console.log("=== VICTORIA DATE RANGE ===");
+    console.log(victoriaRange);
+
+    const victoriaRecords = getWeatherRecords(118, victoriaRange);
+    console.log("=== VICTORIA RECORDS ===");
+    console.log(victoriaRecords);
   }, []);
 
 
@@ -62,19 +76,21 @@ function App() {
             <StationMenu
               provinces={provinces}
               selectedStation={selectedStation}
-              onSelectStation={setSelectedStation}
+              onSelectStation={handleStationSelection}
             />
           </aside>
 
           <section className="flex w-[1100px] flex-col gap-2 p-4">
-            <span>{selectedStation?.name ?? "Toutes les stations"}</span>
-
-            <DateRangeSelector
-              years={DEMO_YEARS}
-              range={range}
-              onChange={setRange}
-              onShowAll={() => {}}
-            />
+            <span>{selectedStation? `${selectedStation.name} (${selectedStation.airportCode})` : "Toutes les stations"}</span>
+            {range !== null && (
+              <DateRangeSelector
+                years={years}
+                range={range}
+                limits={stationLimits}
+                onChange={setRange}
+                onShowAll={() => setRange({...stationLimits })}
+              />
+            )}
 
             <div className="flex gap-2">
               <button className={tabClass("data")} onClick={() => setActiveTab("data")}>
@@ -86,7 +102,7 @@ function App() {
             </div>
 
             <div className="min-h-[400px] overflow-auto border border-dashed p-2">
-              {activeTab === "data" ? <DataView rows={[]} /> : <StatsView stats={{}} />}
+              {activeTab === "data" ? <DataView rows={filteredRecords} /> : <StatsView stats={{}} />}
             </div>
           </section>
         </main>

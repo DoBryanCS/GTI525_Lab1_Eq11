@@ -113,8 +113,6 @@ export function getAvailableStations() {
 }
 
 
-
-
 export function getStationsByProvince() {
   const weatherStations = getAvailableStations();
 
@@ -147,3 +145,111 @@ export function getStationsByProvince() {
 }
 
 
+export function getStationDateRange(stationId) {
+  const rows = getWeatherRows(stationId);
+
+  // Remove empty rows
+  const validRows = rows.filter((row) => row.length > 1);
+
+  // The first row contains the CSV headers
+  const headers = validRows[0];
+
+  const yearIndex = headers.indexOf("Year");
+  const monthIndex = headers.indexOf("Month");
+
+  // Exclude the header row
+  const dataRows = validRows.slice(1);
+
+  if (dataRows.length === 0) {
+    return null;
+  }
+
+  const firstRow = dataRows[0];
+  const lastRow = dataRows[dataRows.length - 1];
+
+  return {
+    fromYear: Number(firstRow[yearIndex]),
+    fromMonth: Number(firstRow[monthIndex]),
+    toYear: Number(lastRow[yearIndex]),
+    toMonth: Number(lastRow[monthIndex])
+  };
+}
+
+
+export function parseMeasurement(value) {
+  if (value === undefined || value.trim() === "") {
+    return null;
+  }
+
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  return number;
+}
+
+
+export function getWeatherRecords(stationId) {
+  // Retrieve the parsed CSV rows
+  const rows = getWeatherRows(stationId);
+
+  // Remove empty rows
+  const validRows = rows.filter((row) => row.length > 1);
+
+  if (validRows.length === 0) {
+    return [];
+  }
+
+  // First row contains the CSV column names
+  const headers = validRows[0];
+
+  // Find the positions of the columns we need
+  const yearIndex = headers.indexOf("Year");
+  const monthIndex = headers.indexOf("Month");
+  const meanMaxIndex = headers.indexOf("Mean Max Temp (°C)");
+  const meanMinIndex = headers.indexOf("Mean Min Temp (°C)");
+  const meanIndex = headers.indexOf("Mean Temp (°C)");
+  const extrMaxIndex = headers.indexOf("Extr Max Temp (°C)");
+  const extrMinIndex = headers.indexOf("Extr Min Temp (°C)");
+  const rainIndex = headers.indexOf("Total Rain (mm)");
+  const snowIndex = headers.indexOf("Total Snow (cm)");
+  const gustIndex = headers.indexOf("Spd of Max Gust (km/h)");
+
+  // Exclude the header
+  const dataRows = validRows.slice(1);
+
+  // Convert each CSV row into a weather object
+  const weatherRecords = dataRows.map((row) => ({
+    year: Number(row[yearIndex]),
+    month: Number(row[monthIndex]),
+    meanMaxTemp: parseMeasurement(row[meanMaxIndex]),
+    meanMinTemp: parseMeasurement(row[meanMinIndex]),
+    meanTemp: parseMeasurement(row[meanIndex]),
+    extrMaxTemp: parseMeasurement(row[extrMaxIndex]),
+    extrMinTemp: parseMeasurement(row[extrMinIndex]),
+    totalRain: parseMeasurement(row[rainIndex]),
+    totalSnow: parseMeasurement(row[snowIndex]),
+    maxGust: parseMeasurement(row[gustIndex])
+  }));
+
+  return weatherRecords;
+}
+
+
+export function filterWeatherRecords(records, range) {
+  if (!range) {
+    return records;
+  }
+
+  //Mathematical gymnastics -> YYYMM
+  const startDate = range.fromYear * 100 + range.fromMonth;
+  const endDate = range.toYear * 100 + range.toMonth;
+
+  return records.filter((record) => {
+    const recordDate = record.year * 100 + record.month;
+
+    return recordDate >= startDate && recordDate <= endDate;
+  });
+}
