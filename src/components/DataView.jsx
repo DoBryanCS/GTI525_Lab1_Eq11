@@ -2,12 +2,12 @@ import { COLUMNS } from "../columns";
 
 // T4 : vue des données (une rangée par Année-Mois)
 
-function DataView({ rows = [] }) {
+function DataView({ rows }) {
   return (
     <div>
       <h2 className="mb-2 text-lg font-bold">Données météo</h2>
       <table className="w-full border-collapse text-sm">
-        <thead>
+        <thead className="sticky top-0 bg-white">
           <tr>
             {COLUMNS.map((col) => (
               <th key={col.key} className="border px-2 py-1">

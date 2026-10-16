@@ -1,16 +1,23 @@
-# React + Vite
+# GTI525 — Laboratoire 1 — Équipe 11
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Application web (React + Vite + Tailwind CSS) qui affiche les données météo historiques
+des principaux aéroports internationaux canadiens, à partir des fichiers CSV fournis.
 
-Currently, two official plugins are available:
+## Lancer l'application
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
+Ouvrir ensuite l'adresse affichée dans le terminal (par défaut http://localhost:5173).
 
-## React Compiler
+## Organisation du code
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+| Fichier | Rôle |
+|---|---|
+| `public/data/*.csv.js` | Fichiers CSV fournis, chargés comme variables JavaScript |
+| `src/utils/csv.js` | Analyse (parsing) d'un texte CSV |
+| `src/utils/weatherData.js` | Extraction des stations, des données mensuelles et calcul des statistiques |
+| `src/models/WeatherStation.js` | Modèle d'une station météo |
+| `src/components/` | Composants d'interface (en-tête, menu, plage de dates, vues Données et Statistiques, pied de page) |
+| `src/App.jsx` | Composant principal : état de l'application et mise en page |

@@ -10,68 +10,13 @@ export function getWeatherRows(stationId) {
     return [];
   }
 
-  const rows = parseCSV(csvText);
-  return rows;
-}
-
-export async function loadCSV(filename) {
-  try {
-    const response = await fetch(
-      `/data/${encodeURIComponent(filename)}`
-    );
-
-    if (!response.ok) {
-      console.error("Could not load CSV:", filename);
-      return [];
-    }
-
-    const csvText = await response.text();
-    const rows = parseCSV(csvText);
-
-    console.log("CSV loaded:", filename);
-    console.table(rows.slice(0, 10));
-
-    return rows;
-
-  } catch (error) {
-    console.error("Error reading CSV:", error);
-    return [];
-  }
-}
-
-// Load the station inventory
-export async function loadStationInventory() {
-  const rows = await loadCSV("Station Inventory EN.csv");
-
-  const headerIndex = rows.findIndex(
-    (row) =>
-      row.includes("Name") &&
-      row.includes("Station ID")
-  );
-
-  if (headerIndex === -1) {
-    console.error("Inventory header not found");
-    return [];
-  }
-
-  const headers = rows[headerIndex];
-
-  return rows.slice(headerIndex + 1)
-    .filter((row) => row.some((field) => field.trim() !== ""))
-    .map((row) => {
-      const station = {};
-
-      headers.forEach((header, index) => {
-        station[header] = row[index] ?? "";
-      });
-
-      return station;
-    });
+  // Remove empty rows (the CSV text starts with a newline)
+  return parseCSV(csvText).filter((row) => row.length > 1);
 }
 
 
 export function getAvailableStations() {
-  const inventoryRows = parseCSV(StationInventoryEN);
+  const inventoryRows = parseCSV(window.StationInventoryEN);
 
   const headerIndex = inventoryRows.findIndex(
     (row) => row.includes("Name") && row.includes("Station ID")
@@ -129,7 +74,7 @@ export function getStationsByProvince() {
 
   // Extract and sort province names
   const provinces = Object.keys(stationsByProvince);
-  provinces.sort();
+  provinces.sort((a, b) => a.localeCompare(b));
 
   // Sort stations alphabetically within each province
   for (const province of provinces) {
@@ -145,33 +90,20 @@ export function getStationsByProvince() {
 }
 
 
-export function getStationDateRange(stationId) {
-  const rows = getWeatherRows(stationId);
-
-  // Remove empty rows
-  const validRows = rows.filter((row) => row.length > 1);
-
-  // The first row contains the CSV headers
-  const headers = validRows[0];
-
-  const yearIndex = headers.indexOf("Year");
-  const monthIndex = headers.indexOf("Month");
-
-  // Exclude the header row
-  const dataRows = validRows.slice(1);
-
-  if (dataRows.length === 0) {
+// Only the first and last rows of the file are considered (T3.4)
+export function getStationDateRange(records) {
+  if (records.length === 0) {
     return null;
   }
 
-  const firstRow = dataRows[0];
-  const lastRow = dataRows[dataRows.length - 1];
+  const firstRecord = records[0];
+  const lastRecord = records[records.length - 1];
 
   return {
-    fromYear: Number(firstRow[yearIndex]),
-    fromMonth: Number(firstRow[monthIndex]),
-    toYear: Number(lastRow[yearIndex]),
-    toMonth: Number(lastRow[monthIndex])
+    fromYear: firstRecord.year,
+    fromMonth: firstRecord.month,
+    toYear: lastRecord.year,
+    toMonth: lastRecord.month
   };
 }
 
@@ -192,18 +124,14 @@ export function parseMeasurement(value) {
 
 
 export function getWeatherRecords(stationId) {
-  // Retrieve the parsed CSV rows
   const rows = getWeatherRows(stationId);
 
-  // Remove empty rows
-  const validRows = rows.filter((row) => row.length > 1);
-
-  if (validRows.length === 0) {
+  if (rows.length === 0) {
     return [];
   }
 
   // First row contains the CSV column names
-  const headers = validRows[0];
+  const headers = rows[0];
 
   // Find the positions of the columns we need
   const yearIndex = headers.indexOf("Year");
@@ -217,11 +145,8 @@ export function getWeatherRecords(stationId) {
   const snowIndex = headers.indexOf("Total Snow (cm)");
   const gustIndex = headers.indexOf("Spd of Max Gust (km/h)");
 
-  // Exclude the header
-  const dataRows = validRows.slice(1);
-
-  // Convert each CSV row into a weather object
-  const weatherRecords = dataRows.map((row) => ({
+  // Convert each CSV row (header excluded) into a weather object
+  return rows.slice(1).map((row) => ({
     year: Number(row[yearIndex]),
     month: Number(row[monthIndex]),
     meanMaxTemp: parseMeasurement(row[meanMaxIndex]),
@@ -233,8 +158,6 @@ export function getWeatherRecords(stationId) {
     totalSnow: parseMeasurement(row[snowIndex]),
     maxGust: parseMeasurement(row[gustIndex])
   }));
-
-  return weatherRecords;
 }
 
 
@@ -243,7 +166,7 @@ export function filterWeatherRecords(records, range) {
     return records;
   }
 
-  //Mathematical gymnastics -> YYYMM
+  //Mathematical gymnastics -> YYYYMM
   const startDate = range.fromYear * 100 + range.fromMonth;
   const endDate = range.toYear * 100 + range.toMonth;
 
@@ -252,4 +175,62 @@ export function filterWeatherRecords(records, range) {
 
     return recordDate >= startDate && recordDate <= endDate;
   });
+}
+
+
+// Statistics shown in the stats view (T5).
+// maxKey: field searched for the maximum value, minKey: field searched for the minimum value
+export const STATISTICS = [
+  { key: "meanTemp", label: "Température moyenne mensuelle", unit: "°C", maxKey: "meanMaxTemp", minKey: "meanMinTemp" },
+  { key: "extrTemp", label: "Température extrême", unit: "°C", maxKey: "extrMaxTemp", minKey: "extrMinTemp" },
+  { key: "rain", label: "Quantité de pluie", unit: "mm", maxKey: "totalRain", minKey: "totalRain" },
+  { key: "snow", label: "Quantité de neige", unit: "cm", maxKey: "totalSnow", minKey: "totalSnow" },
+  { key: "wind", label: "Vitesse du vent", unit: "km/h", maxKey: "maxGust", minKey: "maxGust" }
+];
+
+
+// Finds the record holding the extreme value of a field, ignoring missing values.
+// Returns { value, year, month } or null when no valid value exists.
+function findExtreme(records, field, isBetter) {
+  let best = null;
+
+  for (const record of records) {
+    const value = record[field];
+
+    if (value === null) {
+      continue;
+    }
+
+    if (best === null || isBetter(value, best.value)) {
+      best = { value, year: record.year, month: record.month };
+    }
+  }
+
+  return best;
+}
+
+
+export function computeStatistics(records) {
+  return STATISTICS.map((statistic) => ({
+    ...statistic,
+    max: findExtreme(records, statistic.maxKey, (a, b) => a > b),
+    min: findExtreme(records, statistic.minKey, (a, b) => a < b)
+  }));
+}
+
+
+// Statistics for each of the 12 months: [{ month, statistics }]
+export function computeMonthlyStatistics(records) {
+  const monthlyStatistics = [];
+
+  for (let month = 1; month <= 12; month++) {
+    const monthRecords = records.filter((record) => record.month === month);
+
+    monthlyStatistics.push({
+      month,
+      statistics: computeStatistics(monthRecords)
+    });
+  }
+
+  return monthlyStatistics;
 }

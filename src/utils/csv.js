@@ -40,7 +40,5 @@ export function parseCSV(csvText) {
     rows.push(currentRow);
   }
 
-  console.log("Parsed CSV rows:", rows);    
-
   return rows;
 }
